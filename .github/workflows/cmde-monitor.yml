@@ -1,0 +1,39 @@
+name: CMDE 审评进度监控
+
+on:
+  schedule:
+    # 01:00 UTC = 09:00 CST
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: 运行 CMDE 监控
+        env:
+          DINGTALK_WEBHOOK: ${{ secrets.DINGTALK_WEBHOOK }}
+        run: python cmde_monitor.py
+
+      - name: 提交状态文件
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state/cmde_state.json
+          git diff --staged --quiet || git commit -m "update CMDE state [skip ci]"
+          git push
